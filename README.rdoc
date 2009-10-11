@@ -1,10 +1,8 @@
-JustRights
-==========
+= JustRights
 
 A simple way to manage an arbitrary set of permissions on a ActiveRecord or other resources.
 
-Example
-=======
+== Example
 
 Capabilities are arbitrary (read, comment, close) and will be saved as a bitmask in a magic
 column called +rights+ in the database.
@@ -94,7 +92,9 @@ In this way, all permissions classes should be name-spaced and not cause constan
 unless you have a previously defined class of the same name.  Currently there is no option to
 define the name of the column the bitmask is saved, you may alias_method or contribute :D
 
-Note: Each capability is exponential (adds a power of 2), so make sure that your columns are
+== Note:
+
+Each capability is exponential (adds a power of 2), so make sure that your columns are
 large enough to handle all the different capabilities.
 
 Copyright (c) 2009 Reid MacDonald <reid@laruby.com>, released under the MIT license
