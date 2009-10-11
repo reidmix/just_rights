@@ -1,0 +1,100 @@
+JustRights
+==========
+
+A simple way to manage an arbitrary set of permissions on a ActiveRecord or other resources.
+
+Example
+=======
+
+Capabilities are arbitrary (read, comment, close) and will be saved as a bitmask in a magic
+column called +rights+ in the database.
+
+  class Post < ActiveRecord::Base
+    permissions :read, :comment, :close
+  end
+
+This will add the following methods on your class:
+
+  p = Post.new
+  p.set_permissions = :read, :comment
+
+You can compare permissions:
+
+  p.permission.capabilities            # => [:read, :comment]
+  p.permission.can? :read              # => true
+  p.permission.can? :close             # => false
+
+You can see if a capability exists:
+
+  p.has_capability? :close             # => true
+  p.has_capability? :foobar            # => false
+
+You can transfer permissions:
+
+  p2 = Post.new
+  p2.permission = p.permission
+
+Sometimes you want admins to be able to do everything, you can create or alias a method
+on Post called +sticky+ which will override all permissions:
+
+  class Post
+    def sticky
+      creator.admin?
+    end
+  end
+
+Now no matter what the permissions are set in the database they can do anything:
+
+  p.sticky                             # => true
+  p.set_permissions = :read, :comment
+
+  p.permission.capabilities = [:read, :comment, :close]
+  p.permission.can? :read              # => true
+  p.permission.can? :comment           # => true
+  p.permission.can? :close             # => true
+
+You may also specify different resources that may have different permissions or capabilities.
+You don't have to create a model for each one, you may collect them on a single model which
+may makes sense:
+
+  class Project
+    permissions :attach, :modify, :delete,  :on => :files
+    permissions :create, :order, :complete, :on => :todos
+  end
+
+Here, these will be stored as +todo_rights+ and +file_rights+ in the database.
+
+  p = Project.new
+  p.set_file_permissions :attach, :modify
+  p.set_todo_permissions :create
+
+  p.file_permission.capabilities  # => [:attach, :modify]
+  p.file_permission.can? :attach  # => true
+  p.file_permission.can? :finish  # => false
+
+  p.todo_permission.capabilities  # => [:create]
+  p.todo_permission.can? :append  # => true
+  p.todo_permission.can? :finish  # => false
+  p.todo_permission.can? :attach  # => false
+
+As you can see, the capabilities are separated, and do not crossover.  The exception is if
+sticky is set on the project, it will be set for all underlying permissions.
+
+  p.sticky                        # => true
+  p.file_permission.capabilities  # => [:attach, :modify, :delete]
+  p.todo_permission.capabilities  # => [:create, :order, :complete]
+
+Behind the scenes, JustRights creates new classes within the resource that they are defined:
+
+  Post::Permission
+  Project::FilePermission
+  Project::TodoPermission
+
+In this way, all permissions classes should be name-spaced and not cause constant collisions
+unless you have a previously defined class of the same name.  Currently there is no option to
+define the name of the column the bitmask is saved, you may alias_method or contribute :D
+
+Note: Each capability is exponential (adds a power of 2), so make sure that your columns are
+large enough to handle all the different capabilities.
+
+Copyright (c) 2009 Reid MacDonald <reid@laruby.com>, released under the MIT license
