@@ -92,8 +92,14 @@ In this way, all permissions classes should be name-spaced and not cause constan
 unless you have a previously defined class of the same name.  Currently there is no option to
 define the name of the column the bitmask is saved, you may alias_method or contribute :D
 
-== Note:
+== Notes
 
+=== Ordering
+Ordering of the capability is significant, always append if you can.  If you change the
+order of the rights, their values do not move with them.  In this case, you may need to write
+migration code or take care of how you order your capabilities.
+
+=== Memory or Data Capacity
 Each capability is exponential (adds a power of 2), so make sure that your columns are
 large enough to handle all the different capabilities.
 

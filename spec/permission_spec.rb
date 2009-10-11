@@ -149,19 +149,26 @@ describe JustRights::Permission do
       end
     end
 
-    describe :can? do
+    describe :can?, :[] do
       it 'returns true when has permissions' do
         @permission.can?(:create).should be_true
         @permission.can?(:review).should be_true
+
+        @permission[:create].should be_true
+        @permission[:review].should be_true
       end
 
       it 'returns false when does not have permissions' do
         @permission.can?(:update).should be_false
         @permission.can?(:delete).should be_false
+
+        @permission[:update].should be_false
+        @permission[:delete].should be_false
       end
 
       it 'returns false when not a type' do
         @permission.can?(:foo).should be_false
+        @permission[:foo].should be_false
       end
 
       describe 'when sticky' do
@@ -224,6 +231,175 @@ describe JustRights::Permission do
           permission = Permission.for(*Permission.types)
           permission.stub!(:sticky).and_return true
           permission.capabilities.should == [:create, :review, :update, :delete]
+        end
+      end
+    end
+
+    describe :[]= do
+      describe 'with all capabilities' do
+        before do
+          @permission = Permission.for(*Permission.types)
+        end
+
+        it 'turns off capability' do
+          @permission[:create] = false
+          @permission[:create].should be_false
+          @permission.capabilities.should == [:review, :update, :delete]
+
+          @permission[:review] = 'false'
+          @permission[:review].should be_false
+          @permission.capabilities.should == [:update, :delete]
+
+          @permission[:update] = 0
+          @permission[:update].should be_false
+          @permission.capabilities.should == [:delete]
+
+          @permission[:delete] = '0'
+          @permission[:delete].should be_false
+          @permission.capabilities.should == []
+        end
+
+        it 'turns off capability as string' do
+          @permission['create'] = false
+          @permission['create'].should be_false
+          @permission.capabilities.should == [:review, :update, :delete]
+
+          @permission['review'] = 'false'
+          @permission['review'].should be_false
+          @permission.capabilities.should == [:update, :delete]
+
+          @permission['update'] = 0
+          @permission['update'].should be_false
+          @permission.capabilities.should == [:delete]
+
+          @permission['delete'] = '0'
+          @permission['delete'].should be_false
+          @permission.capabilities.should == []
+        end
+
+        it 'leaves on capability' do
+          @permission[:create] = true
+          @permission['create'] = true
+          @permission[:create].should be_true
+
+          @permission[:review] = 'true'
+          @permission['review'] = 'true'
+          @permission[:review].should be_true
+
+          @permission[:update] = 1
+          @permission['update'] = 1
+          @permission[:update].should be_true
+
+          @permission[:delete] = '1'
+          @permission['delete'] = '1'
+          @permission[:delete].should be_true
+          @permission.capabilities.should == [:create, :review, :update, :delete]
+        end
+
+        it 'ignores non-types' do
+          @permission[:foo] = true
+          @permission[:foo] = 'true'
+          @permission[:foo] = 1
+          @permission[:foo] = '1'
+          @permission.capabilities.should == [:create, :review, :update, :delete]
+        end
+
+        it 'ignores non-boolean like values' do
+          @permission[:create] = 'nope'
+          @permission[:create].should be_true
+
+          @permission[:review] = '2'
+          @permission[:review].should be_true
+
+          @permission[:update] = 2
+          @permission[:update].should be_true
+
+          @permission[:delete] = nil
+          @permission[:update].should be_true
+        end
+      end
+
+      describe 'without capabilities' do
+        before do
+          @permission = Permission.for
+        end
+
+        it 'turns on capability' do
+          @permission[:create] = true
+          @permission[:create].should be_true
+          @permission.capabilities.should == [:create]
+
+          @permission[:review] = 'true'
+          @permission[:review].should be_true
+          @permission.capabilities.should == [:create, :review]
+
+          @permission[:update] = 1
+          @permission[:update].should be_true
+          @permission.capabilities.should == [:create, :review, :update]
+
+          @permission[:delete] = '1'
+          @permission[:delete].should be_true
+          @permission.capabilities.should == [:create, :review, :update, :delete]
+        end
+
+        it 'turns on capability (as string)' do
+          @permission['create'] = true
+          @permission['create'].should be_true
+          @permission.capabilities.should == [:create]
+
+          @permission['review'] = 'true'
+          @permission['review'].should be_true
+          @permission.capabilities.should == [:create, :review]
+
+          @permission['update'] = 1
+          @permission['update'].should be_true
+          @permission.capabilities.should == [:create, :review, :update]
+
+          @permission['delete'] = '1'
+          @permission['delete'].should be_true
+          @permission.capabilities.should == [:create, :review, :update, :delete]
+        end
+
+        it 'leaves off capability' do
+          @permission[:create] = false
+          @permission['create'] = false
+          @permission[:create].should be_false
+
+          @permission[:review] = 'false'
+          @permission['review'] = 'false'
+          @permission[:review].should be_false
+
+          @permission[:update] = 0
+          @permission['update'] = 0
+          @permission[:update].should be_false
+
+          @permission[:delete] = '0'
+          @permission['delete'] = '0'
+          @permission[:delete].should be_false
+
+          @permission.capabilities.should == []
+        end
+
+        it 'ignores non-types' do
+          @permission[:foo] = false
+          @permission[:foo] = 'false'
+          @permission[:foo] = 0
+          @permission[:foo] = '0'
+          @permission.capabilities.should == []
+        end
+
+        it 'ignores non-boolean like values' do
+          @permission[:create] = 'nope'
+          @permission[:create].should be_false
+
+          @permission[:review] = '2'
+          @permission[:review].should be_false
+
+          @permission[:update] = 2
+          @permission[:update].should be_false
+
+          @permission[:delete] = nil
+          @permission[:update].should be_false
         end
       end
     end

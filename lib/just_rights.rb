@@ -75,6 +75,7 @@ module JustRights
     def can? type
       sticky || has_capability?(type) && bitmask & bit_for(type) != 0
     end
+    alias_method :[], :can?
 
     def has_capability? type
       types.member? type.to_sym
@@ -82,6 +83,15 @@ module JustRights
 
     def capabilities
       types.select { |type| sticky || can?(type) }
+    end
+
+    def []= type, arg
+      bool = case arg.to_s
+        when /false|0/i then false
+        when  /true|1/i then true
+      end
+      return unless has_capability? type and not bool.nil?
+      @bitmask ^= self[type] == bool ? 0 : bit_for(type)
     end
 
     protected
