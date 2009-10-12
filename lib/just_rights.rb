@@ -24,18 +24,20 @@ module JustRights
               self[column_name] = record.send(:bitmask)
             end
 
-            # define wrapper
+            # define wrappers
             define_method "set_#{method_name.pluralize}" do |*args|
               self.send "#{method_name}=", permission.for(*args)
             end
 
+            define_method "#{method_name}_attributes=" do |hash|
+              hash.each do |k,v|
+                self.send(method_name)[k] = v
+              end
+            end
+
             # define getter
             define_method method_name do
-              if respond_to? :sticky
-                permission.send :new, self[column_name], sticky
-              else
-                permission.send :new, self[column_name]
-              end
+              permission.send :new, self[column_name], self
             end
           end
 
@@ -67,8 +69,9 @@ module JustRights
         end
     end
 
-    def initialize bitmask, sticky = false
-      @bitmask, @sticky = bitmask, sticky
+    def initialize bitmask, parent = nil
+      @bitmask, @parent = bitmask, parent
+      @sticky = parent.respond_to?(:sticky) ? parent.send(:sticky) : false
     end
     private_class_method :new
 
@@ -91,14 +94,30 @@ module JustRights
         when  /true|1/i then true
       end
       return unless has_capability? type and not bool.nil?
-      @bitmask ^= self[type] == bool ? 0 : bit_for(type)
+      self.bitmask ^= self[type] == bool ? 0 : bit_for(type)
+    end
+
+    def types
+      self.class.types
+    end
+
+    def new_record?() true end
+
+    def method_missing name
+      if has_capability?(name)
+        self[name]
+      else
+        super
+      end
     end
 
     protected
-      attr_reader :bitmask, :sticky
+      attr_reader :bitmask, :sticky, :parent
 
-      def types
-        self.class.types
+      def bitmask= mask
+        @bitmask = mask
+        parent.send "#{self.class.name.underscore.split('/').last}=", self if parent
+        mask
       end
 
       def bit_for type

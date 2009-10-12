@@ -64,6 +64,7 @@ describe JustRights do
           @mock.respond_to?(:permission).should be_true
           @mock.respond_to?(:permission=).should be_true
           @mock.respond_to?(:set_permissions).should be_true
+          @mock.respond_to?(:permission_attributes=).should be_true
         end
 
         describe :permission do
@@ -96,6 +97,10 @@ describe JustRights do
             @mock.sticky.should be_true
             @mock.permission.send(:sticky).should be_true
           end
+
+          it 'sets the parent' do
+            @mock.permission.send(:parent).should == @mock
+          end
         end
 
         describe :permission= do
@@ -125,6 +130,15 @@ describe JustRights do
             @mock.should_receive(:permission=).with(:permission)
 
             @mock.set_permissions :create, :delete
+          end
+        end
+
+        describe :permission_attributes= do
+          it 'sets each key value on the permission' do
+            @mock.stub!(:permission).and_return(@permission = mock(@class::Permission))
+            @permission.should_receive(:[]=).with('a', '1')
+            @permission.should_receive(:[]=).with(:b, 2)
+            @mock.permission_attributes = [['a', '1'], [:b, 2]]
           end
         end
       end

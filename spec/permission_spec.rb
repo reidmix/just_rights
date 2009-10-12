@@ -101,12 +101,20 @@ describe JustRights::Permission do
       Permission.send(:new, 1).send(:bitmask).should == 1
     end
 
+    it 'sets parent' do
+      Permission.send(:new, 1, @mock = mock('parent')).send(:parent).should == @mock
+    end
+
     it 'sets sticky to false by default' do
       Permission.send(:new, 1).send(:sticky).should be_false
     end
 
     it 'can set sticky to true' do
-      Permission.send(:new, 1, true).send(:sticky).should be_true
+      Permission.send(:new, 1, mock('parent', :sticky => true)).send(:sticky).should be_true
+    end
+
+    it 'can set sticky to false' do
+      Permission.send(:new, 1, mock('parent', :sticky => false)).send(:sticky).should be_false
     end
   end
 
@@ -118,8 +126,29 @@ describe JustRights::Permission do
     describe :types do
       it 'calls the types class method' do
         Permission.should_receive(:types).and_return [:type]
-        @permission.send(:types).should == [:type]
+        @permission.types.should == [:type]
       end
+    end
+
+    describe :new_record? do
+      it 'is always true' do
+        @permission.new_record?.should be_true
+      end
+    end
+
+    describe :method_missing do
+      it 'returns capability value' do
+        @permission.should_receive(:[]).with(:create).and_return true
+        @permission.create.should be_true
+
+        @permission.should_receive(:[]).with(:review).and_return false
+        @permission.review.should be_false
+      end
+
+      it 'raises error if no capability' do
+        lambda { @permission.foo }.should raise_error(NoMethodError, /undefined method `foo' for /)
+      end
+
     end
 
     describe :bit_for do
@@ -239,6 +268,12 @@ describe JustRights::Permission do
       describe 'with all capabilities' do
         before do
           @permission = Permission.for(*Permission.types)
+        end
+
+        it 'resets parent permission with self' do
+          @permission.instance_variable_set('@parent', parent = mock('Parent'))
+          parent.should_receive(:permission=).with(@permission)
+          @permission[:create] = false
         end
 
         it 'turns off capability' do

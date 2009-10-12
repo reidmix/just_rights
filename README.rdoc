@@ -11,6 +11,8 @@ column called +rights+ in the database.
     permissions :read, :comment, :close
   end
 
+=== Methods
+
 This will add the following methods on your class:
 
   p = Post.new
@@ -32,6 +34,9 @@ You can transfer permissions:
   p2 = Post.new
   p2.permission = p.permission
 
+
+=== Admin Rights (Sticky Bit)
+
 Sometimes you want admins to be able to do everything, you can create or alias a method
 on Post called +sticky+ which will override all permissions:
 
@@ -50,6 +55,37 @@ Now no matter what the permissions are set in the database they can do anything:
   p.permission.can? :read              # => true
   p.permission.can? :comment           # => true
   p.permission.can? :close             # => true
+
+=== View Helpers and Nested Attributes
+
+Saving permissions from views, there are additional method helpers to aid in the creation of
+permissions.  These are array indices or attributes:
+
+  p.permission[:read]          # => false
+  p.permission[:read] = true   # => true
+  p.permission[:read]          # => true
+  p.permission.read            # => true
+
+There is a simulation of the nested attributes:
+
+  p.permission_attributes = { :read => '0', :close => '1' }
+  p.permission[:read]         # => false
+  p.permission[:close]        # => true
+
+So in the view you can do the following and it will update as expected:
+
+  <%= f.fields_for :permission do |p| %>
+    <%= p.check_box :read %>
+    <%= p.label :read %>
+
+    <%= p.check_box :comment %>
+    <%= p.label :comment %>
+
+    <%= p.check_box :close %>
+    <%= p.label :close %>
+  <%- end %>
+
+=== Multiple Resources
 
 You may also specify different resources that may have different permissions or capabilities.
 You don't have to create a model for each one, you may collect them on a single model which
