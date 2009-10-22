@@ -54,9 +54,19 @@ describe JustRights do
         lambda { @class::Permission.types << :admin }.should raise_error(TypeError, "can't modify frozen array")
       end
 
+      it 'sets undefined default' do
+        @class.permissions(:create, :review, :update, :delete)
+        @class::Permission.default.should == 0
+      end
+
+      it 'sets specified default' do
+        @class.permissions(:create, :review, :update, :delete, :default => [:create, :update])
+        @class::Permission.default.should == 5
+      end
+
       describe 'defined methods' do
         before do
-          @class.permissions(*%w[create review update delete])
+          @class.permissions(:create, :review, :update, :delete, :default => %w[create update])
           @mock = @class.new
         end
 
@@ -124,6 +134,14 @@ describe JustRights do
           end
         end
 
+        describe :default_permissions! do
+          it 'sets bitmask to default' do
+            @mock['rights'] = 0
+            @mock.default_permissions!
+            @mock['rights'].should == 5
+          end
+        end
+
         describe :set_permissions do
           it 'sets permission using generated Permission.for()' do
             @class::Permission.should_receive(:for).with(:create, :delete).and_return(:permission)
@@ -186,7 +204,7 @@ describe JustRights do
 
       describe 'defined methods' do
         before do
-          @class.permissions('create', 'review', 'update', 'delete', :on => 'post')
+          @class.permissions('create', 'review', 'update', 'delete', :on => 'post', :default => %w[create review])
           @class.permissions('adjust', 'edit', 'suggest', 'correct', :on => 'copy_edit')
           @mock = @class.new
         end
@@ -301,9 +319,50 @@ describe JustRights do
             @mock.set_copy_edit_permissions :edit, :adjust
           end
         end
-      end
+        describe :default_permissions! do
+          it 'sets bitmask to specified default (PostPermission.default)' do
+            @mock['post_rights'] = 9
+            @mock.default_post_permissions!
+            @mock['post_rights'].should == 3
+            @mock['post_rights'].should == @class::PostPermission.default
+          end
 
+          it 'sets bitmask to undefined default (CopyEditPermission.default)' do
+            @mock['copy_edit_rights'] = 3
+            @mock.default_copy_edit_permissions!
+            @mock['copy_edit_rights'].should == 0
+            @mock['copy_edit_rights'].should == @class::CopyEditPermission.default
+          end
+        end
+
+        describe :default_permissions_for do
+          it 'sets default permissions for resources' do
+            @mock['post_rights'] = 9
+            @mock.default_permissions_for :posts
+            @mock['post_rights'].should == 3
+          end
+
+          it 'sets default permissions for one resource' do
+            @mock['post_rights'] = 9
+            @mock.default_permissions_for :post
+            @mock['post_rights'].should == 3
+          end
+
+          it 'sets default permissions for many resources' do
+            @mock['post_rights'] = @mock['copy_edit_rights'] = 4
+            @mock.default_permissions_for :posts, :copy_edits
+
+            @mock['post_rights'].should == 3
+            @mock['copy_edit_rights'].should == 0
+          end
+
+          it 'raises error when no matching resource' do
+            lambda { @mock.default_permissions_for :foo }.should raise_error(NoMethodError, /undefined method `default_foo_permissions!'/)
+          end
+        end
+      end
     end
+
   end
 end
 

@@ -1,7 +1,8 @@
 require File.dirname(__FILE__) + '/spec_helper'
 
 Permission = Class.new(JustRights::Permission) do
-  @types = [:create, :review, :update, :delete]
+  @types   = [:create, :review, :update, :delete]
+  @default = 5
 
   class << self
     # make it easier to test
@@ -17,8 +18,28 @@ describe JustRights::Permission do
     end
   end
 
+  describe :default, 'not set' do
+    it 'returns 0' do
+      JustRights::Permission.default.should == 0
+    end
+  end
+
   it 'returns types' do
     Permission.types.should == [:create, :review, :update, :delete]
+  end
+
+  it 'returns default' do
+    Permission.default.should == 5
+  end
+
+  describe :default_capabilities do
+    it 'should return empty when not set' do
+      JustRights::Permission.default_capabilities.should be_empty
+    end
+
+    it 'should return capabilities for default bitmask' do
+      Permission.default_capabilities.should == [:create, :update]
+    end
   end
 
   describe :bit_for do
@@ -89,6 +110,25 @@ describe JustRights::Permission do
 
     it 'is not sticky' do
       Permission.for.send(:sticky).should be_false
+    end
+  end
+
+  describe :create do
+    it 'returns instance' do
+      Permission.create.should be_kind_of(Permission)
+    end
+
+    it 'creates permission with correct bitmask' do
+      Permission.create.send(:bitmask).should == 5
+    end
+
+    it 'creates permission that has default_capabilities' do
+      Permission.create.capabilities.should == Permission.default_capabilities
+      Permission.create.capabilities.should == [:create, :update]
+    end
+
+    it 'is not sticky' do
+      Permission.create.send(:sticky).should be_false
     end
   end
 
