@@ -1,5 +1,8 @@
 require File.dirname(__FILE__) + '/spec_helper'
 
+class MockRightsProxy
+end
+
 class MockRightsResource
   def initialize
     @attributes, @sticky = {}, false
@@ -108,6 +111,15 @@ describe JustRights do
             @mock.permission.send(:sticky).should be_true
           end
 
+          it 'sets sticky to true even when private' do
+            @class.class_eval {
+              def sticky() true end
+              private :sticky
+            }
+            @mock.respond_to?(:sticky).should be_false
+            @mock.permission.send(:sticky).should be_true
+          end
+
           it 'sets the parent' do
             @mock.permission.send(:parent).should == @mock
           end
@@ -157,6 +169,69 @@ describe JustRights do
             @permission.should_receive(:[]=).with('a', '1')
             @permission.should_receive(:[]=).with(:b, 2)
             @mock.permission_attributes = [['a', '1'], [:b, 2]]
+          end
+        end
+      end
+
+      describe 'PermissionExtension' do
+        describe 'module' do
+          before do
+            @class.permissions
+          end
+
+          it 'defines PermissionExtension module on class' do
+            @class.const_defined?('PermissionExtension').should be_true
+          end
+
+          it 'is a Module' do
+            @class::PermissionExtension.should be_kind_of(Module)
+          end
+
+          it 'does not redefine PermissionExtension when permissions is called twice' do
+            id = @class::PermissionExtension.object_id
+            @class.permissions :on => :twice
+            @class::PermissionExtension.object_id.should == id
+          end
+        end
+
+        describe 'methods' do
+          before do
+            @class.permissions(:read, :write)
+
+            @none, @read, @write, @both = @class.new, @class.new, @class.new, @class.new
+            @none['rights'], @read['rights'], @write['rights'], @both['rights'] = 0, 1, 2, 3
+
+
+            PermissionExtension = @class::PermissionExtension unless defined?(PermissionExtension)
+            @proxy = Class.new do
+              include PermissionExtension
+
+              def initialize(association)
+                @association = association
+              end
+
+              def select &block
+                @association.select(&block)
+              end
+            end.new([@none, @read, @write, @both])
+          end
+
+          it 'defines a method for each type' do
+            PermissionExtension.instance_methods.should be_member('can_read')
+            PermissionExtension.instance_methods.should be_member('can_write')
+          end
+
+          it 'defines a method for each type on included class' do
+            @proxy.methods.should be_member('can_read')
+            @proxy.methods.should be_member('can_write')
+          end
+
+          it 'selects only those that can_read' do
+            @proxy.can_read.should == [@read, @both]
+          end
+
+          it 'selects only those that can_write' do
+            @proxy.can_write.should == [@write, @both]
           end
         end
       end
@@ -361,8 +436,58 @@ describe JustRights do
           end
         end
       end
-    end
 
+      describe 'PermissionExtension methods' do
+        before do
+          @class.permissions(:read, :write, :on => :files)
+          @class.permissions(:execute,      :on => :directories)
+
+          @none, @read, @write, @both = @class.new, @class.new, @class.new, @class.new
+          @none['file_rights'], @read['file_rights'], @write['file_rights'], @both['file_rights'] = 0, 1, 2, 3
+          @none['directory_rights'], @write['directory_rights'], @both['directory_rights'] = 0, 0, 0
+
+          @execute = @read
+          @execute['directory_rights'] = 1
+
+          ResourcePermissionExtension = @class::PermissionExtension unless defined?(ResourcePermissionExtension)
+          @proxy = Class.new do
+            include ResourcePermissionExtension
+
+            def initialize(association)
+              @association = association
+            end
+
+            def select &block
+              @association.select(&block)
+            end
+          end.new([@none, @read, @write, @both])
+        end
+
+        it 'defines a method for each type and resource' do
+          ResourcePermissionExtension.instance_methods.should be_member('can_read_file')
+          ResourcePermissionExtension.instance_methods.should be_member('can_write_file')
+          ResourcePermissionExtension.instance_methods.should be_member('can_execute_directory')
+        end
+
+        it 'defines a method for each type on included class' do
+          @proxy.methods.should be_member('can_read_file')
+          @proxy.methods.should be_member('can_write_file')
+          @proxy.methods.should be_member('can_execute_directory')
+        end
+
+        it 'selects only those that can_read files' do
+          @proxy.can_read_file.should == [@read, @both]
+        end
+
+        it 'selects only those that can_write files' do
+          @proxy.can_write_file.should == [@write, @both]
+        end
+
+        it 'selects only those that can_execite directories' do
+          @proxy.can_execute_directory.should == [@execute]
+        end
+      end
+    end
   end
 end
 

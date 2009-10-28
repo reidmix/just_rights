@@ -60,6 +60,16 @@ module JustRights
             end
           end
 
+          # define scopes based on permissions
+          self.const_set 'PermissionExtension', Module.new unless self.const_defined? 'PermissionExtension'
+          self.const_get('PermissionExtension').module_eval do
+            permission.types.each do |type|
+              define_method "Can#{type.to_s.classify}#{resource}".underscore do
+                self.select { |i| i.send(method_name).can? type }
+              end
+            end
+          end
+
           permission
         end
       end
@@ -121,7 +131,7 @@ module JustRights
     # and "sticky" of the parent if supplied.
     def initialize bitmask, parent = nil
       @bitmask, @parent = bitmask, parent
-      @sticky = parent.respond_to?(:sticky) ? parent.send(:sticky) : false
+      @sticky = parent.respond_to?(:sticky, true) ? parent.send(:sticky) : false
     end
     private_class_method :new
 
@@ -137,6 +147,7 @@ module JustRights
     # Determines whether the supplied capabilities is a member of the
     # defined capabilities for this class.
     def has_capability? type
+      return false unless type
       types.member? type.to_sym
     end
 

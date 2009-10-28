@@ -209,12 +209,16 @@ describe JustRights::Permission do
     describe :has_capability? do
       it 'has specified types' do
         Permission.types.each do |type|
-          @permission.has_capability? type
+          @permission.has_capability?(type).should be_true
         end
       end
 
       it 'returns false if not a specified type' do
         @permission.has_capability?(:foo).should be_false
+      end
+
+      it 'returns false if nil' do
+        @permission.has_capability?(nil).should be_false
       end
     end
 

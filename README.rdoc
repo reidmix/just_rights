@@ -56,7 +56,7 @@ Now no matter what the permissions are set in the database they can do anything:
   p.permission.can? :comment           # => true
   p.permission.can? :close             # => true
 
-=== View Helpers and Nested Attributes
+=== Helpers Methods for Nested Attributes
 
 Saving permissions from views, there are additional method helpers to aid in the creation of
 permissions.  These are array indices or attributes:
@@ -127,6 +127,80 @@ Behind the scenes, JustRights creates new classes within the resource that they 
 In this way, all permissions classes should be name-spaced and not cause constant collisions
 unless you have a previously defined class of the same name.  Currently there is no option to
 define the name of the column the bitmask is saved, you may alias_method or contribute :D
+
+== Permission System
+
+If you include the PermssionSystem in your controllers you will gain View Helpers, prebuilt
+before_filters, and rights management variables.
+
+  class ApplicationHelper
+    include PermissionSystem
+  end
+
+Once you have done this you can setup a filter or another mechanism to setup the current
+user's rights.  For one right just do:
+
+  class ApplicationControlller
+    before_filter do |controller|
+      self.rights = current_user.permission
+    end
+  end
+
+Or in the example above with multiple resources:
+
+  class ProjectController
+    before_filter do |controller|
+      project = Project.find params[:id]
+      grant_rights_for :files => project.file_permission, :todos => project.todo_permissions
+    end
+  end
+
+Which ever works for your application.  Once you have rights set from your controller or view
+you can:
+
+  <%- if rights.can?(:read) %>
+    Priviledged info here
+  <%- end %>
+
+Or again, with multiple resources:
+
+  <%- if rights_for(:files).can? :modify %>
+    render :partial => 'modify_files', :collection => @project.files
+  <%- end %>
+
+=== Verify Access Filter
+
+To ensure that the correct rights are secured before executing an action there are
+before_filters that you can setup with +verify_access+:
+
+  class SomeController
+    verify_access :can? => :read, :deny => 'You do not have permission to read this file', :only => :show
+  end
+
+This will throw a PermissionExtension::ForbiddenAccess exception with the deny messaging.
+The exception is setup so that it will generate a 403 HTTP error, which can be targetted
+by placing a file in public/403.html or using +rescue_for+.  And you can pass any of the
+options you normally pass to filters.
+
+You can also use multiple resource form (and if you add multiples it will match on any of
+them):
+
+  class ProjectController
+    verify_access :can? => {:project => :modify}, :deny => 'You do not have permission to read this file'
+  end
+
+=== View Helpers
+
+There are also two helpers that can aid in creating rights-based links and submit buttons.
+These are added for you when you include PermissionSystem:
+
+  <%= link_by_rights 'Read', read_path, :can? => :read, :deny => 'You do not have permission to read this resource' %>
+  <%= link_by_rights 'Attach', attach_file_path, :can? => {:file => :attach}, :deny => 'You do not have permission to attach files' %>
+
+This will generate a link to the read path if the User can read, or a link that will show
+an alert with the :deny message if they cannot.
+
+Another is the submit button +submit_by_rights+ which take the same options as +link_by_rights+.
 
 == Notes
 
